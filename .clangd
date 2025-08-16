@@ -1,0 +1,5 @@
+CompileFlags:
+  Add:
+    - -I/home/wackster/Projects/raylib_learning/raylib-quickstart/build/external/raylib-master/src/external/glfw/include
+    - -I/home/wackster/Projects/raylib_learning/raylib-quickstart/build/external/raylib-master/src
+    - -I/home/wackster/Projects/raylib_learning/raylib-quickstart/include
