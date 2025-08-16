@@ -47,7 +47,6 @@ void addDigit(CalculatorStatus *calc, char digit) {
   } else {
     // Regex failures, etc..
   }
-  // Convert the value to integer
 }
 
 void addOperation(void *data) {
