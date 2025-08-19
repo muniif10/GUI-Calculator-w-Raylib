@@ -1,4 +1,3 @@
-
 #include "calculator.h"
 #include "raylib.h"
 #include "resource_dir.h" // utility header for SearchAndSetResourceDir
@@ -10,21 +9,25 @@
 // Func takes the current result in calcStat
 
 void doNothing(char *data) {}
-
+// TODO: Add history system
 void clearCalcState(void *data) {
   CalculatorStatus *calcStat = (CalculatorStatus *)data;
   calcStat->firstOp = 0;
   calcStat->secondOp = 0;
-  calcStat->lastResult = 0;
-  free(calcStat->tempStr);
-  calcStat->tempStr = malloc(sizeof(char) * 64);
-  for (int ii = 0; ii < 64; ii++) {
-    if (ii == 0) {
-      calcStat->tempStr[ii] = '\0';
-    } else {
-      calcStat->tempStr[ii] = ' ';
+  // NOTE: After first operation, must not clear the tempStr
+  // Second press on clear will perform
+  if (calcStat->lastResult == 0) {
+    free(calcStat->tempStr);
+    calcStat->tempStr = malloc(sizeof(char) * 64);
+    for (int ii = 0; ii < 64; ii++) {
+      if (ii == 0) {
+        calcStat->tempStr[ii] = '\0';
+      } else {
+        calcStat->tempStr[ii] = ' ';
+      }
     }
   }
+  calcStat->lastResult = 0;
 }
 
 void addDigit(CalculatorStatus *calc, char digit) {
@@ -43,6 +46,9 @@ void addDigit(CalculatorStatus *calc, char digit) {
     strcat(calc->tempStr, digitStr);
 
     char myOperand[64];
+    for (int ii = 0; ii < 64; ii++){
+      myOperand[ii] = ' ';
+    }
 
     // Store the original float operand to char*
     sprintf(myOperand, "%.0f", calc->firstOp);
@@ -53,10 +59,14 @@ void addDigit(CalculatorStatus *calc, char digit) {
     char tempFirstOp[64];
     // Append the new digit to the original operand
     strcat(myOperand, digitStr);
-    calc->firstOp = strtol(myOperand, NULL, 0);
+    // NOTE: The only reason this breaks before is because of the
+    // auto base detection
+    calc->firstOp = strtol(myOperand, NULL, 10);
     TraceLog(LOG_INFO, "%.3f", calc->firstOp);
     // TraceLog(LOG_INFO, const char *text, ...)
 
+    TraceLog(LOG_INFO, "first: %.3f :: second: %.3f", calc->firstOp,
+             calc->secondOp);
   } else if (reti == REG_NOMATCH) {
     // No regex match
     puts("No matches, you clicked a digit?");
@@ -65,7 +75,76 @@ void addDigit(CalculatorStatus *calc, char digit) {
   }
 }
 
-void addOperation(void *data) {
+void doDivOperation(void *data) {
+  CalculatorStatus *calc = (CalculatorStatus *)data;
+  if (calc->secondOp == 0) {
+    calc->opType = '/';
+    calc->secondOp = calc->firstOp;
+    calc->firstOp = 0;
+    char operatorDone[2] = {'/', '\0'};
+    // Append to current value of string
+    strcat(calc->tempStr, operatorDone);
+  } else {
+    free(calc->tempStr);
+    calc->tempStr = malloc(sizeof(char) * 64);
+    for (int ii = 0; ii < 64; ii++) {
+      calc->tempStr[ii] = ' ';
+    }
+    float result = calc->secondOp / calc->firstOp;
+    gcvt(result, 9, calc->tempStr);
+    calc->lastResult = result;
+    TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
+             calc->firstOp, calc->secondOp);
+  }
+}
+
+void doMulOperation(void *data) {
+  CalculatorStatus *calc = (CalculatorStatus *)data;
+  if (calc->secondOp == 0) {
+    calc->opType = '*';
+    calc->secondOp = calc->firstOp;
+    calc->firstOp = 0;
+    char operatorDone[2] = {'*', '\0'};
+    // Append to current value of string
+    strcat(calc->tempStr, operatorDone);
+  } else {
+    free(calc->tempStr);
+    calc->tempStr = malloc(sizeof(char) * 64);
+    for (int ii = 0; ii < 64; ii++) {
+      calc->tempStr[ii] = ' ';
+    }
+    float result = calc->secondOp * calc->firstOp;
+    gcvt(result, 9, calc->tempStr);
+    calc->lastResult = result;
+    TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
+             calc->firstOp, calc->secondOp);
+  }
+}
+
+void doSubOperation(void *data) {
+  CalculatorStatus *calc = (CalculatorStatus *)data;
+  if (calc->secondOp == 0) {
+    calc->opType = '-';
+    calc->secondOp = calc->firstOp;
+    calc->firstOp = 0;
+    char operatorDone[2] = {'-', '\0'};
+    // Append to current value of string
+    strcat(calc->tempStr, operatorDone);
+  } else {
+    free(calc->tempStr);
+    calc->tempStr = malloc(sizeof(char) * 64);
+    for (int ii = 0; ii < 64; ii++) {
+      calc->tempStr[ii] = ' ';
+    }
+    float result = calc->secondOp - calc->firstOp;
+    gcvt(result, 9, calc->tempStr);
+    calc->lastResult = result;
+    TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
+             calc->firstOp, calc->secondOp);
+  }
+}
+
+void doAddOperation(void *data) {
   CalculatorStatus *calc = (CalculatorStatus *)data;
   if (calc->secondOp == 0) {
     calc->opType = '+';
@@ -234,9 +313,9 @@ int main() {
   SearchAndSetResourceDir("resources");
 
   Button buttons[] = {
-      {.color = ORANGE, "+", addOperation, .haveValue = 1},
-      {.color = ORANGE, "-", addOperation, .haveValue = 1},
-      {.color = ORANGE, "*", addOperation, .haveValue = 1},
+      {.color = ORANGE, "+", doAddOperation, .haveValue = 1},
+      {.color = ORANGE, "-", doSubOperation, .haveValue = 1},
+      {.color = ORANGE, "*", doMulOperation, .haveValue = 1},
       {.color = BLUE, "1", addDigit1, .haveValue = 1},
       {.color = BLUE, "2", addDigit2, .haveValue = 1},
       {.color = BLUE, "3", addDigit3, .haveValue = 1},
@@ -248,6 +327,7 @@ int main() {
       {.color = BLUE, "9", addDigit9, .haveValue = 1},
       {.color = BLUE, "CLR", clearCalcState, .haveValue = 1},
       {.color = BLUE, "0", addDigit0, .haveValue = 1},
+      {.color = ORANGE, "/", doDivOperation, .haveValue = 1},
   };
 
   // Font configs

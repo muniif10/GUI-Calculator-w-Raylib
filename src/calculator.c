@@ -2,7 +2,7 @@
 #include "calculator.h"
 #include <stdbool.h>
 void generateGridView(CalculatorStatus *calStat, int col, int row, int maxWidth,
-                      int maxHeight, Button *buttons, FontConfig* fontConfig) {
+                      int maxHeight, Button *buttons, FontConfig *fontConfig) {
   float yOffset = 100;
   float rowHeightUnit = ((float)maxHeight - (yOffset / row)) / row;
   float colWidthUnit = (float)maxWidth / col;

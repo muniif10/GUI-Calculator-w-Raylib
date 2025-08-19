@@ -24,7 +24,10 @@ void createButton(float x, float y, float height, float width, char *text,
   // Draw the rectangle
   DrawRectangleRec(buttonRec, buttonColor);
   // Create vector2
-  Vector2 vect = {(buttonRec.width - MeasureTextEx(fontConfig->fontLocation,text, 16,28).x) / 2 + buttonRec.x,
+  Vector2 vect = {(buttonRec.width -
+                   MeasureTextEx(fontConfig->fontLocation, text, 16, 28).x) /
+                          2 +
+                      buttonRec.x,
                   (buttonRec.height - 16) / 2 + buttonRec.y};
   // Draw the text
   DrawTextEx(fontConfig->fontLocation, text, vect, 32, fontConfig->fontsize,
