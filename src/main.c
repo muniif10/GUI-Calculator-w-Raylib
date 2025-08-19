@@ -11,6 +11,22 @@
 
 void doNothing(char *data) {}
 
+void clearCalcState(void *data) {
+  CalculatorStatus *calcStat = (CalculatorStatus *)data;
+  calcStat->firstOp = 0;
+  calcStat->secondOp = 0;
+  calcStat->lastResult = 0;
+  free(calcStat->tempStr);
+  calcStat->tempStr = malloc(sizeof(char) * 64);
+  for (int ii = 0; ii < 64; ii++) {
+    if (ii == 0) {
+      calcStat->tempStr[ii] = '\0';
+    } else {
+      calcStat->tempStr[ii] = ' ';
+    }
+  }
+}
+
 void addDigit(CalculatorStatus *calc, char digit) {
   char digitStr[2] = {digit, '\0'};
   regex_t regex;
@@ -43,7 +59,7 @@ void addDigit(CalculatorStatus *calc, char digit) {
 
   } else if (reti == REG_NOMATCH) {
     // No regex match
-    puts("No matches, you clicked a number?");
+    puts("No matches, you clicked a digit?");
   } else {
     // Regex failures, etc..
   }
@@ -59,13 +75,13 @@ void addOperation(void *data) {
     // Append to current value of string
     strcat(calc->tempStr, operatorDone);
   } else {
+    free(calc->tempStr);
+    calc->tempStr = malloc(sizeof(char) * 64);
+    for (int ii = 0; ii < 64; ii++) {
+      calc->tempStr[ii] = ' ';
+    }
     float result = calc->firstOp + calc->secondOp;
-    gcvt(result, 2, calc->tempStr);
-    // free(calc->tempStr);
-    // calc->tempStr= malloc(sizeof(char)*64);
-    // for (int ii = 0; ii < 64; ii++) {
-    //   calc->tempStr[ii] = ' ';
-    // }
+    gcvt(result, 9, calc->tempStr);
     calc->lastResult = result;
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
@@ -207,7 +223,7 @@ int main() {
   // printf("Pointer: %p\nCapacity: %d\n", &queue.operations, queue.capacity);
   // Tell the window to use vsync and work on high DPI displays
 
-  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
   int height = 500;
   int width = 500;
   // Create the window and OpenGL context
@@ -230,6 +246,7 @@ int main() {
       {.color = BLUE, "7", addDigit7, .haveValue = 1},
       {.color = BLUE, "8", addDigit8, .haveValue = 1},
       {.color = BLUE, "9", addDigit9, .haveValue = 1},
+      {.color = BLUE, "CLR", clearCalcState, .haveValue = 1},
       {.color = BLUE, "0", addDigit0, .haveValue = 1},
   };
 
@@ -237,7 +254,8 @@ int main() {
   FontConfig fontConfig = {
       .fontsize = 14,
       .color = WHITE,
-      .fontLocation = LoadFont("GoogleSansCode-VariableFont_wght.ttf")};
+      .fontLocation =
+          LoadFontEx("GoogleSansCode-VariableFont_wght.ttf", 120, 0, 0)};
 
   // game loop
   while (!WindowShouldClose()) // run the loop untill the user presses
