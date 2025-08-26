@@ -1,19 +1,19 @@
 #include "calculator.h"
 #include "raylib.h"
 #include "resource_dir.h" // utility header for SearchAndSetResourceDir
+#include "stb_ds.c"
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Func takes the current result in calcStat
+#define SPLIT_FACTOR 4.0
 
-void doNothing(char *data) {}
-// TODO: Add history system
 void clearCalcState(void *data) {
   CalculatorStatus *calcStat = (CalculatorStatus *)data;
   calcStat->firstOp = 0;
   calcStat->secondOp = 0;
+  calcStat->didOperation = false;
   // NOTE: After first operation, must not clear the tempStr
   // Second press on clear will perform
   if (calcStat->lastResult == 0) {
@@ -35,18 +35,20 @@ void addDigit(CalculatorStatus *calc, char digit) {
   regex_t regex;
   int reti = regcomp(&regex, "[[:digit:]]", 0);
   if (reti) {
+    regfree(&regex);
     fprintf(stderr, "Could not compile regex\n");
     exit(1);
   }
 
   reti = regexec(&regex, digitStr, 0, NULL, 0);
   if (!reti) {
+    regfree(&regex);
     // Match
     // Append to current value of string
     strcat(calc->tempStr, digitStr);
 
     char myOperand[64];
-    for (int ii = 0; ii < 64; ii++){
+    for (int ii = 0; ii < 64; ii++) {
       myOperand[ii] = ' ';
     }
 
@@ -61,6 +63,7 @@ void addDigit(CalculatorStatus *calc, char digit) {
     strcat(myOperand, digitStr);
     // NOTE: The only reason this breaks before is because of the
     // auto base detection
+    // Enforce base 10
     calc->firstOp = strtol(myOperand, NULL, 10);
     TraceLog(LOG_INFO, "%.3f", calc->firstOp);
     // TraceLog(LOG_INFO, const char *text, ...)
@@ -68,9 +71,11 @@ void addDigit(CalculatorStatus *calc, char digit) {
     TraceLog(LOG_INFO, "first: %.3f :: second: %.3f", calc->firstOp,
              calc->secondOp);
   } else if (reti == REG_NOMATCH) {
+    regfree(&regex);
     // No regex match
     puts("No matches, you clicked a digit?");
   } else {
+    regfree(&regex);
     // Regex failures, etc..
   }
 }
@@ -85,14 +90,22 @@ void doDivOperation(void *data) {
     // Append to current value of string
     strcat(calc->tempStr, operatorDone);
   } else {
-    free(calc->tempStr);
-    calc->tempStr = malloc(sizeof(char) * 64);
-    for (int ii = 0; ii < 64; ii++) {
-      calc->tempStr[ii] = ' ';
-    }
+    memset(calc->tempStr, 0, 64);
+    // free(calc->tempStr);
+    // calc->tempStr = malloc(sizeof(char) * 64);
+    // for (int ii = 0; ii < 64; ii++) {
+    //   calc->tempStr[ii] = ' ';
+    // }
     float result = calc->secondOp / calc->firstOp;
     gcvt(result, 9, calc->tempStr);
     calc->lastResult = result;
+    History his;
+    his.operand1 = calc->secondOp;
+    his.operand2 = calc->firstOp;
+    his.calcOperator = calc->opType;
+    his.result = calc->tempStr;
+    calc->didOperation = true;
+    arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
   }
@@ -108,14 +121,22 @@ void doMulOperation(void *data) {
     // Append to current value of string
     strcat(calc->tempStr, operatorDone);
   } else {
-    free(calc->tempStr);
-    calc->tempStr = malloc(sizeof(char) * 64);
-    for (int ii = 0; ii < 64; ii++) {
-      calc->tempStr[ii] = ' ';
-    }
+    memset(calc->tempStr, 0, 64);
+    // free(calc->tempStr);
+    // calc->tempStr = malloc(sizeof(char) * 64);
+    // for (int ii = 0; ii < 64; ii++) {
+    //   calc->tempStr[ii] = ' ';
+    // }
     float result = calc->secondOp * calc->firstOp;
     gcvt(result, 9, calc->tempStr);
     calc->lastResult = result;
+    History his;
+    his.operand1 = calc->secondOp;
+    his.operand2 = calc->firstOp;
+    his.calcOperator = calc->opType;
+    his.result = calc->tempStr;
+    calc->didOperation = true;
+    arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
   }
@@ -131,14 +152,22 @@ void doSubOperation(void *data) {
     // Append to current value of string
     strcat(calc->tempStr, operatorDone);
   } else {
-    free(calc->tempStr);
-    calc->tempStr = malloc(sizeof(char) * 64);
-    for (int ii = 0; ii < 64; ii++) {
-      calc->tempStr[ii] = ' ';
-    }
+    memset(calc->tempStr, 0, 64);
+    // free(calc->tempStr);
+    // calc->tempStr = malloc(sizeof(char) * 64);
+    // for (int ii = 0; ii < 64; ii++) {
+    //   calc->tempStr[ii] = ' ';
+    // }
     float result = calc->secondOp - calc->firstOp;
     gcvt(result, 9, calc->tempStr);
     calc->lastResult = result;
+    History his;
+    his.operand1 = calc->secondOp;
+    his.operand2 = calc->firstOp;
+    his.calcOperator = calc->opType;
+    his.result = calc->tempStr;
+    calc->didOperation = true;
+    arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
   }
@@ -154,14 +183,22 @@ void doAddOperation(void *data) {
     // Append to current value of string
     strcat(calc->tempStr, operatorDone);
   } else {
-    free(calc->tempStr);
-    calc->tempStr = malloc(sizeof(char) * 64);
-    for (int ii = 0; ii < 64; ii++) {
-      calc->tempStr[ii] = ' ';
-    }
+    memset(calc->tempStr, 0, 64);
+    // free(calc->tempStr);
+    // calc->tempStr = malloc(sizeof(char) * 64);
+    // for (int ii = 0; ii < 64; ii++) {
+    //   calc->tempStr[ii] = ' ';
+    // }
     float result = calc->firstOp + calc->secondOp;
     gcvt(result, 9, calc->tempStr);
     calc->lastResult = result;
+    History his;
+    his.operand1 = calc->secondOp;
+    his.operand2 = calc->firstOp;
+    his.calcOperator = calc->opType;
+    his.result = calc->tempStr;
+    calc->didOperation = true;
+    arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
   }
@@ -289,12 +326,22 @@ void addDigit0(void *data) {
 }
 
 int main() {
+  SetTraceLogLevel(LOG_ALL);
+  SearchAndSetResourceDir("resources");
+  // Shader blurShader = LoadShader(0, "blur.glsl");
+  // int blurDirectionLoc = GetShaderLocation(blurShader, "direction");
   CalculatorStatus calStat;
   calStat.opType = 'X';
   calStat.firstOp = 0;
   calStat.secondOp = 0;
   calStat.lastResult = 0;
+
+  History *history = NULL;
+
+  calStat.history = history;
+  // calStat.history = (char* []) {"ada","sok"};
   calStat.tempStr = malloc(sizeof(char) * 64);
+
   if (calStat.tempStr == NULL) {
     fprintf(stderr, "Failed to allocate memory for tempStr\n");
     exit(1);
@@ -305,12 +352,12 @@ int main() {
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
   int height = 500;
   int width = 500;
+  float effectiveCalculatorWidth = width / SPLIT_FACTOR;
   // Create the window and OpenGL context
   InitWindow(width, height, "Calculator!");
   SetTargetFPS(60);
   // Utility function from resource_dir.h to find the resources folder and set
   // it as the current working directory so we can load from it
-  SearchAndSetResourceDir("resources");
 
   Button buttons[] = {
       {.color = ORANGE, "+", doAddOperation, .haveValue = 1},
@@ -335,7 +382,10 @@ int main() {
       .fontsize = 14,
       .color = WHITE,
       .fontLocation =
-          LoadFontEx("GoogleSansCode-VariableFont_wght.ttf", 120, 0, 0)};
+          LoadFontEx("GoogleSansCode-VariableFont_wght.ttf", 120, NULL, 0)};
+
+  FontConfig fontConfigHistory = {
+      .fontsize = 20, .color = WHITE, .fontLocation = fontConfig.fontLocation};
 
   // game loop
   while (!WindowShouldClose()) // run the loop untill the user presses
@@ -343,8 +393,15 @@ int main() {
                                // window draw
   {
     BeginDrawing();
-    generateGridView(&calStat, 3, 5, width, height, buttons, &fontConfig);
+    generateGridView(&calStat, 3, 5, width - effectiveCalculatorWidth, height,
+                     buttons, &fontConfig);
     DrawText(calStat.tempStr, 0, 0, 24, BLACK);
+    enum CALCULATOR_RETURN_CODE res = generateHistorySideView(
+        (Vector2){width - effectiveCalculatorWidth, 0},
+        width - effectiveCalculatorWidth, height, &calStat, &fontConfigHistory);
+    if (res == NO_CALCULATOR_STATUS_OBJECT) {
+      return NO_CALCULATOR_STATUS_OBJECT;
+    }
     // createButton(100, 100, 50, 50, "Button", doSomething, &queue, true);
     // Setup the back buffer for drawing (clear color and depth buffers)
     ClearBackground(WHITE);
@@ -352,6 +409,11 @@ int main() {
     // draw some text using the default font
     EndDrawing();
   }
+
+  free(calStat.tempStr);
+  arrfree(history);
+  free(history);
+  UnloadFont(fontConfig.fontLocation);
   // cleanup
   // unload our texture so it can be cleaned up
 
