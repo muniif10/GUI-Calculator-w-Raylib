@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SPLIT_FACTOR 4.0
+#define SPLIT_FACTOR 3
 
 void clearCalcState(void *data) {
   CalculatorStatus *calcStat = (CalculatorStatus *)data;
@@ -16,15 +16,13 @@ void clearCalcState(void *data) {
   calcStat->didOperation = false;
   // NOTE: After first operation, must not clear the tempStr
   // Second press on clear will perform
-  if (calcStat->lastResult == 0) {
-    free(calcStat->tempStr);
-    calcStat->tempStr = malloc(sizeof(char) * 64);
-    for (int ii = 0; ii < 64; ii++) {
-      if (ii == 0) {
-        calcStat->tempStr[ii] = '\0';
-      } else {
-        calcStat->tempStr[ii] = ' ';
-      }
+  free(calcStat->tempStr);
+  calcStat->tempStr = malloc(sizeof(char) * 64);
+  for (int ii = 0; ii < 64; ii++) {
+    if (ii == 0) {
+      calcStat->tempStr[ii] = '\0';
+    } else {
+      calcStat->tempStr[ii] = ' ';
     }
   }
   calcStat->lastResult = 0;
@@ -61,12 +59,9 @@ void addDigit(CalculatorStatus *calc, char digit) {
     char tempFirstOp[64];
     // Append the new digit to the original operand
     strcat(myOperand, digitStr);
-    // NOTE: The only reason this breaks before is because of the
-    // auto base detection
-    // Enforce base 10
+    // NOTE: Enforce base 10
     calc->firstOp = strtol(myOperand, NULL, 10);
     TraceLog(LOG_INFO, "%.3f", calc->firstOp);
-    // TraceLog(LOG_INFO, const char *text, ...)
 
     TraceLog(LOG_INFO, "first: %.3f :: second: %.3f", calc->firstOp,
              calc->secondOp);
@@ -103,11 +98,16 @@ void doDivOperation(void *data) {
     his.operand1 = calc->secondOp;
     his.operand2 = calc->firstOp;
     his.calcOperator = calc->opType;
-    his.result = calc->tempStr;
+    TraceLog(LOG_INFO, "lastResult = %.2f", calc->lastResult);
+    char *resultStringForHistory = malloc(sizeof(char) * 20);
+    strcpy(resultStringForHistory, calc->tempStr);
+    sprintf(resultStringForHistory, "%.2f", calc->lastResult);
+    his.result = resultStringForHistory;
     calc->didOperation = true;
     arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
+    clearCalcState(calc);
   }
 }
 
@@ -134,11 +134,15 @@ void doMulOperation(void *data) {
     his.operand1 = calc->secondOp;
     his.operand2 = calc->firstOp;
     his.calcOperator = calc->opType;
-    his.result = calc->tempStr;
+    char *resultStringForHistory = malloc(sizeof(char) * 20);
+    strcpy(resultStringForHistory, calc->tempStr);
+    sprintf(resultStringForHistory, "%.2f", calc->lastResult);
+    his.result = resultStringForHistory;
     calc->didOperation = true;
     arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
+    clearCalcState(calc);
   }
 }
 
@@ -165,11 +169,16 @@ void doSubOperation(void *data) {
     his.operand1 = calc->secondOp;
     his.operand2 = calc->firstOp;
     his.calcOperator = calc->opType;
-    his.result = calc->tempStr;
+    // his.result = calc->tempStr;
+    char *resultStringForHistory = malloc(sizeof(char) * 20);
+    strcpy(resultStringForHistory, calc->tempStr);
+    sprintf(resultStringForHistory, "%.2f", calc->lastResult);
+    his.result = resultStringForHistory;
     calc->didOperation = true;
     arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
+    clearCalcState(calc);
   }
 }
 
@@ -196,11 +205,16 @@ void doAddOperation(void *data) {
     his.operand1 = calc->secondOp;
     his.operand2 = calc->firstOp;
     his.calcOperator = calc->opType;
-    his.result = calc->tempStr;
+    // his.result = calc->tempStr;
+    char *resultStringForHistory = malloc(sizeof(char) * 20);
+    strcpy(resultStringForHistory, calc->tempStr);
+    sprintf(resultStringForHistory, "%.2f", calc->lastResult);
+    his.result = resultStringForHistory;
     calc->didOperation = true;
     arrput(calc->history, his);
     TraceLog(LOG_INFO, "Result: %f from %f and %f", calc->lastResult,
              calc->firstOp, calc->secondOp);
+    clearCalcState(calc);
   }
 }
 
@@ -350,6 +364,7 @@ int main() {
   // Tell the window to use vsync and work on high DPI displays
 
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
+  // Set height and width of windows
   int height = 500;
   int width = 500;
   float effectiveCalculatorWidth = width / SPLIT_FACTOR;
@@ -385,7 +400,7 @@ int main() {
           LoadFontEx("GoogleSansCode-VariableFont_wght.ttf", 120, NULL, 0)};
 
   FontConfig fontConfigHistory = {
-      .fontsize = 20, .color = WHITE, .fontLocation = fontConfig.fontLocation};
+      .fontsize = 14, .color = WHITE, .fontLocation = fontConfig.fontLocation};
 
   // game loop
   while (!WindowShouldClose()) // run the loop untill the user presses
@@ -398,14 +413,14 @@ int main() {
     DrawText(calStat.tempStr, 0, 0, 24, BLACK);
     enum CALCULATOR_RETURN_CODE res = generateHistorySideView(
         (Vector2){width - effectiveCalculatorWidth, 0},
-        width - effectiveCalculatorWidth, height, &calStat, &fontConfigHistory);
+        effectiveCalculatorWidth, height, &calStat, &fontConfigHistory);
     if (res == NO_CALCULATOR_STATUS_OBJECT) {
       return NO_CALCULATOR_STATUS_OBJECT;
     }
     // createButton(100, 100, 50, 50, "Button", doSomething, &queue, true);
     // Setup the back buffer for drawing (clear color and depth buffers)
     ClearBackground(WHITE);
-    DrawFPS(width - 100, 0);
+    // DrawFPS(width - 100, 0);
     // draw some text using the default font
     EndDrawing();
   }

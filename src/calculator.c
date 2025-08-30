@@ -32,35 +32,42 @@ enum CALCULATOR_RETURN_CODE generateHistorySideView(Vector2 topLeftStartPoint,
   float yCoordinate = topLeftStartPoint.y;
   // Height should maintain the values coming from the main application
   // Width should be the leftover from the calculation
+
+  char *historyTitle = "Previous calculations:";
+  Vector2 titleSize = MeasureTextEx(fontConfig->fontLocation, historyTitle,
+                               fontConfig->fontsize, 1);
+  DrawText(historyTitle, xCoordinate, yCoordinate, 15, BLACK);
+
+  // To put a title on top of the history
+  yCoordinate = yCoordinate + titleSize.y;
   if (calc != NULL) {
     int arrlength = arrlen(calc->history);
-    TraceLog(LOG_INFO, "%d", arrlength);
+    // TraceLog(LOG_INFO, "%d", arrlength);
     // Get the string
     // Calculate the length is okay or not to draw text over to the edge of
     if (arrlength > 0) {
-      float yPos = 0.0;
       for (int ii = 0; ii < arrlength; ii++) {
         History his = calc->history[ii];
         char outStr[51];
         memset(outStr, 0, 51);
         snprintf(outStr, 50, "%.2f %c %.2f = %s", his.operand1,
                  his.calcOperator, his.operand2, his.result);
-        TraceLog(LOG_INFO, "first round::%s::", outStr);
+        // TraceLog(LOG_INFO, "first round::%s::", outStr);
         Vector2 size = MeasureTextEx(fontConfig->fontLocation, outStr,
                                      fontConfig->fontsize, 1);
-        TraceLog(LOG_INFO, "size: %.2f\twidth:%.2f", size.x, width);
+        // TraceLog(LOG_INFO, "size: %.2f\twidth:%.2f", size.x, width);
         if (size.x > width) {
-          TraceLog(LOG_INFO, "second round: %s", outStr);
+          // TraceLog(LOG_INFO, "second round: %s", outStr);
           memset(outStr, 0, 51);
-          snprintf(outStr, 50, "%.2f %c %.2f =\n %s", his.operand1,
+          snprintf(outStr, 50, "%.2f\n%c\n%.2f\n=\n %s", his.operand1,
                    his.calcOperator, his.operand2, his.result);
           size = MeasureTextEx(fontConfig->fontLocation, outStr,
                                fontConfig->fontsize, 1);
         }
         DrawTextEx(fontConfig->fontLocation, outStr,
-                   (Vector2){topLeftStartPoint.x, yPos}, fontConfig->fontsize,
-                   1, BLACK);
-        yPos = yPos + size.y;
+                   (Vector2){topLeftStartPoint.x, yCoordinate},
+                   fontConfig->fontsize, 1, BLACK);
+        yCoordinate = yCoordinate + size.y;
       }
     }
     // screen If exceed window's limit, we need to emulate carriage return else
